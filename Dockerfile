@@ -21,9 +21,13 @@ FROM oven/bun:1.3.9-alpine AS runtime
 
 WORKDIR /app
 
-# Copy output from build
+# Copy built output
 COPY --from=build /app/.output ./.output
-# Nuxt also needs some files sometimes, but .output contains everything needed by Nitro
+
+# Install production dependencies so native modules (libsql, etc.) resolve correctly.
+# @libsql/client uses platform-specific native binaries that cannot be bundled by Nitro.
+COPY --from=build /app/package.json /app/bun.lock ./
+RUN bun install --production --frozen-lockfile
 
 # Production environment variables
 ENV NODE_ENV=production

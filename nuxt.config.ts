@@ -27,6 +27,22 @@ export default defineNuxtConfig({
     transpile: ["zod"],
   },
 
+  nitro: {
+    // @libsql/client uses native binaries and transitive deps that Nitro
+    // cannot bundle — mark them as external so they resolve from node_modules at runtime
+    externals: {
+      external: [
+        "@libsql/client",
+        "libsql",
+        "@libsql/hrana-client",
+        "@libsql/isomorphic-ws",
+        "@libsql/isomorphic-fetch",
+        "@libsql/linux-x64-musl",
+        "@libsql/linux-x64-gnu",
+      ],
+    },
+  },
+
   routeRules: {
     "/": { prerender: true },
   },
