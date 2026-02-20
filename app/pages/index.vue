@@ -1,355 +1,355 @@
 <script setup lang="ts">
-definePageMeta({ layout: 'default' })
+definePageMeta({ layout: "default" });
 
-useSeoMeta({ title: 'Dashboard | Meu Concreto' })
+useSeoMeta({ title: "Dashboard | Meu Concreto" });
 
-const { user, companies, activeCompanyId, companyId, switchCompany }
-  = useAuth()
+const { user, companies, activeCompanyId, companyId, switchCompany } =
+  useAuth();
 
 const canFilter = computed(() => {
-  const role = user.value?.role?.toLowerCase() || ''
-  return ['admin', 'manager', 'administrador', 'gerente'].includes(role)
-})
+  const role = user.value?.role?.toLowerCase() || "";
+  return ["admin", "manager", "administrador", "gerente"].includes(role);
+});
 
 // ─── Filtros de Período ──────────────────────────────────────────
-const selectedPeriod = ref('month')
+const selectedPeriod = ref("month");
 const periodOptions = [
-  { label: 'Hoje', value: 'today', icon: 'i-heroicons-clock' },
-  { label: 'Esta Semana', value: 'week', icon: 'i-heroicons-calendar-days' },
-  { label: 'Este Mês', value: 'month', icon: 'i-heroicons-calendar' },
-  { label: 'Este Ano', value: 'year', icon: 'i-heroicons-rectangle-stack' },
-  { label: 'Tudo', value: 'all', icon: 'i-heroicons-globe-alt' }
-]
+  { label: "Hoje", value: "today", icon: "i-heroicons-clock" },
+  { label: "Esta Semana", value: "week", icon: "i-heroicons-calendar-days" },
+  { label: "Este Mês", value: "month", icon: "i-heroicons-calendar" },
+  { label: "Este Ano", value: "year", icon: "i-heroicons-rectangle-stack" },
+  { label: "Tudo", value: "all", icon: "i-heroicons-globe-alt" },
+];
 
 // ─── Fetch paralelo — escopo da empresa ativa ─────────────────────
 interface Sale {
-  id: number
-  customerName: string
-  total: number
-  status: 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled'
-  date: string | number | Date
-  paymentMethod?: string | null
-  seller?: { id: number, name: string } | null
+  id: number;
+  customerName: string;
+  total: number;
+  status: "pending" | "confirmed" | "in_progress" | "completed" | "cancelled";
+  date: string | number | Date;
+  paymentMethod?: string | null;
+  seller?: { id: number; name: string } | null;
 }
 
 interface Transaction {
-  id: number
-  description: string
-  amount: number
-  type: 'income' | 'expense'
-  status: 'pending' | 'paid' | 'cancelled'
-  date: string | number | Date
-  paymentMethod?: string | null
+  id: number;
+  description: string;
+  amount: number;
+  type: "income" | "expense";
+  status: "pending" | "paid" | "cancelled";
+  date: string | number | Date;
+  paymentMethod?: string | null;
 }
 
 interface Quote {
-  id: number
-  status: string
-  createdAt: string | number | Date
+  id: number;
+  status: string;
+  createdAt: string | number | Date;
 }
 
 interface Product {
-  id: number
-  active: boolean
+  id: number;
+  active: boolean;
 }
 
 const [
   { data: salesData, pending: salesPending },
   { data: txData, pending: txPending },
   { data: quotesData },
-  { data: productsData }
+  { data: productsData },
 ] = await Promise.all([
   useFetch<{ sales: Sale[] }>(() => `/api/sales?companyId=${companyId.value}`, {
-    default: () => ({ sales: [] })
+    default: () => ({ sales: [] }),
   }),
   useFetch<{ transactions: Transaction[] }>(
     () => `/api/transactions?companyId=${companyId.value}`,
     {
-      default: () => ({ transactions: [] })
-    }
+      default: () => ({ transactions: [] }),
+    },
   ),
   useFetch<{ quotes: Quote[] }>(
     () => `/api/quotes?companyId=${companyId.value}`,
     {
-      default: () => ({ quotes: [] })
-    }
+      default: () => ({ quotes: [] }),
+    },
   ),
   useFetch<{ products: Product[] }>(
     () => `/api/products?companyId=${companyId.value}`,
     {
-      default: () => ({ products: [] })
-    }
-  )
-])
+      default: () => ({ products: [] }),
+    },
+  ),
+]);
 
 // ─── Helpers ──────────────────────────────────────────────────────
 const formatCurrency = (cents: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-    cents / 100
-  )
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
+    cents / 100,
+  );
 
 // Drizzle serializes timestamp columns as ISO strings via JSON.
 // Normalize any date value (ISO string | Date | unix seconds) → ms timestamp.
 const toMs = (v: string | number | Date | null | undefined): number => {
-  if (!v) return 0
-  const n
-    = typeof v === 'number' ? (v < 1e10 ? v * 1000 : v) : new Date(v).getTime()
-  return n
-}
+  if (!v) return 0;
+  const n =
+    typeof v === "number" ? (v < 1e10 ? v * 1000 : v) : new Date(v).getTime();
+  return n;
+};
 
-const now = new Date()
+const now = new Date();
 
 const ranges = computed(() => {
-  const d = new Date(now)
-  d.setHours(0, 0, 0, 0)
-  const today = d.getTime()
-  const tomorrow = today + 86400000
-  const yesterday = today - 86400000
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  const today = d.getTime();
+  const tomorrow = today + 86400000;
+  const yesterday = today - 86400000;
 
-  if (selectedPeriod.value === 'today') {
+  if (selectedPeriod.value === "today") {
     return {
       start: today,
       end: tomorrow,
       prevStart: yesterday,
-      prevEnd: today
-    }
+      prevEnd: today,
+    };
   }
-  if (selectedPeriod.value === 'week') {
-    const day = d.getDay()
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1) // Seg
-    const monday = new Date(now)
-    monday.setHours(0, 0, 0, 0)
-    monday.setDate(diff)
-    const start = monday.getTime()
-    const prevStart = start - 7 * 86400000
-    return { start, end: start + 7 * 86400000, prevStart, prevEnd: start }
+  if (selectedPeriod.value === "week") {
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Seg
+    const monday = new Date(now);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(diff);
+    const start = monday.getTime();
+    const prevStart = start - 7 * 86400000;
+    return { start, end: start + 7 * 86400000, prevStart, prevEnd: start };
   }
-  if (selectedPeriod.value === 'month') {
-    const start = new Date(d.getFullYear(), d.getMonth(), 1).getTime()
-    const end = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime()
-    const prevStart = new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime()
-    return { start, end, prevStart, prevEnd: start }
+  if (selectedPeriod.value === "month") {
+    const start = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime();
+    const prevStart = new Date(d.getFullYear(), d.getMonth() - 1, 1).getTime();
+    return { start, end, prevStart, prevEnd: start };
   }
-  if (selectedPeriod.value === 'year') {
-    const start = new Date(d.getFullYear(), 0, 1).getTime()
-    const end = new Date(d.getFullYear() + 1, 0, 1).getTime()
-    const prevStart = new Date(d.getFullYear() - 1, 0, 1).getTime()
-    return { start, end, prevStart, prevEnd: start }
+  if (selectedPeriod.value === "year") {
+    const start = new Date(d.getFullYear(), 0, 1).getTime();
+    const end = new Date(d.getFullYear() + 1, 0, 1).getTime();
+    const prevStart = new Date(d.getFullYear() - 1, 0, 1).getTime();
+    return { start, end, prevStart, prevEnd: start };
   }
-  return { start: 0, end: tomorrow, prevStart: 0, prevEnd: 0 } // All
-})
+  return { start: 0, end: tomorrow, prevStart: 0, prevEnd: 0 }; // All
+});
 
 // ─── KPI: Faturamento Filtrado ───────────────────────────────────
-const sales = computed<Sale[]>(() => salesData.value?.sales ?? [])
+const sales = computed<Sale[]>(() => salesData.value?.sales ?? []);
 const transactions = computed<Transaction[]>(
-  () => txData.value?.transactions ?? []
-)
-const quotes = computed<Quote[]>(() => quotesData.value?.quotes ?? [])
-const products = computed<Product[]>(() => productsData.value?.products ?? [])
+  () => txData.value?.transactions ?? [],
+);
+const quotes = computed<Quote[]>(() => quotesData.value?.quotes ?? []);
+const products = computed<Product[]>(() => productsData.value?.products ?? []);
 
 const salesFiltered = computed(() =>
   sales.value.filter(
-    s =>
-      toMs(s.date) >= ranges.value.start
-      && toMs(s.date) < ranges.value.end
-      && s.status !== 'cancelled'
-  )
-)
+    (s) =>
+      toMs(s.date) >= ranges.value.start &&
+      toMs(s.date) < ranges.value.end &&
+      s.status !== "cancelled",
+  ),
+);
 const salesPrevious = computed(() =>
   sales.value.filter(
-    s =>
-      toMs(s.date) >= ranges.value.prevStart
-      && toMs(s.date) < ranges.value.prevEnd
-      && s.status !== 'cancelled'
-  )
-)
+    (s) =>
+      toMs(s.date) >= ranges.value.prevStart &&
+      toMs(s.date) < ranges.value.prevEnd &&
+      s.status !== "cancelled",
+  ),
+);
 
 const revenueFiltered = computed(() =>
-  salesFiltered.value.reduce((acc: number, s) => acc + (s.total ?? 0), 0)
-)
+  salesFiltered.value.reduce((acc: number, s) => acc + (s.total ?? 0), 0),
+);
 const revenuePrevious = computed(() =>
-  salesPrevious.value.reduce((acc: number, s) => acc + (s.total ?? 0), 0)
-)
+  salesPrevious.value.reduce((acc: number, s) => acc + (s.total ?? 0), 0),
+);
 const revenueTrend = computed(() => {
-  if (selectedPeriod.value === 'all' || !revenuePrevious.value) return null
+  if (selectedPeriod.value === "all" || !revenuePrevious.value) return null;
   return (
-    ((revenueFiltered.value - revenuePrevious.value) / revenuePrevious.value)
-    * 100
-  )
-})
+    ((revenueFiltered.value - revenuePrevious.value) / revenuePrevious.value) *
+    100
+  );
+});
 
 // ─── KPI: Orçamentos Ativos ───────────────────────────────────────
 const activeQuotes = computed(() =>
-  quotes.value.filter(q => ['draft', 'sent'].includes(q.status))
-)
+  quotes.value.filter((q) => ["draft", "sent"].includes(q.status)),
+);
 const quotesFiltered = computed(() =>
   quotes.value.filter(
-    q =>
-      toMs(q.createdAt) >= ranges.value.start
-      && toMs(q.createdAt) < ranges.value.end
-  )
-)
+    (q) =>
+      toMs(q.createdAt) >= ranges.value.start &&
+      toMs(q.createdAt) < ranges.value.end,
+  ),
+);
 const quotesPrevious = computed(() =>
   quotes.value.filter(
     (q: any) =>
-      toMs(q.createdAt) >= ranges.value.prevStart
-      && toMs(q.createdAt) < ranges.value.prevEnd
-  )
-)
+      toMs(q.createdAt) >= ranges.value.prevStart &&
+      toMs(q.createdAt) < ranges.value.prevEnd,
+  ),
+);
 const quotesTrend = computed(() => {
-  if (selectedPeriod.value === 'all' || !quotesPrevious.value.length)
-    return null
+  if (selectedPeriod.value === "all" || !quotesPrevious.value.length)
+    return null;
   return (
-    ((quotesFiltered.value.length - quotesPrevious.value.length)
-      / quotesPrevious.value.length)
-    * 100
-  )
-})
+    ((quotesFiltered.value.length - quotesPrevious.value.length) /
+      quotesPrevious.value.length) *
+    100
+  );
+});
 
 // ─── KPI: Vendas no Período ───────────────────────────────────────
 const salesCountTrend = computed(() => {
-  if (selectedPeriod.value === 'all' || !salesPrevious.value.length)
-    return null
+  if (selectedPeriod.value === "all" || !salesPrevious.value.length)
+    return null;
   return (
-    ((salesFiltered.value.length - salesPrevious.value.length)
-      / salesPrevious.value.length)
-    * 100
-  )
-})
+    ((salesFiltered.value.length - salesPrevious.value.length) /
+      salesPrevious.value.length) *
+    100
+  );
+});
 
 const revenueTrendLabel = computed(() => {
-  if (selectedPeriod.value === 'all') return ''
+  if (selectedPeriod.value === "all") return "";
   const map: any = {
-    today: 'vs. ontem',
-    week: 'vs. sem. ant.',
-    month: 'vs. mês ant.',
-    year: 'vs. ano ant.'
-  }
-  return map[selectedPeriod.value] || ''
-})
+    today: "vs. ontem",
+    week: "vs. sem. ant.",
+    month: "vs. mês ant.",
+    year: "vs. ano ant.",
+  };
+  return map[selectedPeriod.value] || "";
+});
 
 // ─── KPI: Saldo do Período (Receitas - Despesas) ──────────────────
 const txFiltered = computed(() =>
   transactions.value.filter(
     (t: any) =>
-      toMs(t.date) >= ranges.value.start
-      && toMs(t.date) < ranges.value.end
-      && t.status !== 'cancelled'
-  )
-)
+      toMs(t.date) >= ranges.value.start &&
+      toMs(t.date) < ranges.value.end &&
+      t.status !== "cancelled",
+  ),
+);
 const incomeFiltered = computed(() =>
   txFiltered.value
-    .filter((t: any) => t.type === 'income')
-    .reduce((acc: number, t: any) => acc + t.amount, 0)
-)
+    .filter((t: any) => t.type === "income")
+    .reduce((acc: number, t: any) => acc + t.amount, 0),
+);
 const expenseFiltered = computed(() =>
   txFiltered.value
-    .filter((t: any) => t.type === 'expense')
-    .reduce((acc: number, t: any) => acc + t.amount, 0)
-)
+    .filter((t: any) => t.type === "expense")
+    .reduce((acc: number, t: any) => acc + t.amount, 0),
+);
 const balanceFiltered = computed(
-  () => incomeFiltered.value - expenseFiltered.value
-)
+  () => incomeFiltered.value - expenseFiltered.value,
+);
 
 // ─── Sparklines: receita diária dos últimos 7 dias ────────────────
 const last7DaysRevenue = computed(() => {
   const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date()
-    d.setDate(d.getDate() - (6 - i))
-    d.setHours(0, 0, 0, 0)
-    return { start: d.getTime(), end: d.getTime() + 86400_000 }
-  })
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    d.setHours(0, 0, 0, 0);
+    return { start: d.getTime(), end: d.getTime() + 86400_000 };
+  });
   return days.map(({ start, end }) =>
     sales.value
       .filter(
         (s: any) =>
-          toMs(s.date) >= start
-          && toMs(s.date) < end
-          && s.status !== 'cancelled'
+          toMs(s.date) >= start &&
+          toMs(s.date) < end &&
+          s.status !== "cancelled",
       )
-      .reduce((acc: number, s: any) => acc + (s.total ?? 0), 0)
-  )
-})
+      .reduce((acc: number, s: any) => acc + (s.total ?? 0), 0),
+  );
+});
 
 // ─── Cash Flow Chart (últimos 6 meses) ────────────────────────────
 const cashFlowMonths = computed(() => {
   return Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1)
-    const start = d.getTime()
-    const end = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime()
-    const label = d.toLocaleDateString('pt-BR', { month: 'short' })
+    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+    const start = d.getTime();
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime();
+    const label = d.toLocaleDateString("pt-BR", { month: "short" });
     const income = transactions.value
       .filter(
         (t: any) =>
-          t.type === 'income'
-          && toMs(t.date) >= start
-          && toMs(t.date) < end
-          && t.status !== 'cancelled'
+          t.type === "income" &&
+          toMs(t.date) >= start &&
+          toMs(t.date) < end &&
+          t.status !== "cancelled",
       )
-      .reduce((acc: number, t: any) => acc + t.amount, 0)
+      .reduce((acc: number, t: any) => acc + t.amount, 0);
     const expense = transactions.value
       .filter(
         (t: any) =>
-          t.type === 'expense'
-          && toMs(t.date) >= start
-          && toMs(t.date) < end
-          && t.status !== 'cancelled'
+          t.type === "expense" &&
+          toMs(t.date) >= start &&
+          toMs(t.date) < end &&
+          t.status !== "cancelled",
       )
-      .reduce((acc: number, t: any) => acc + t.amount, 0)
-    return { label, income, expense }
-  })
-})
+      .reduce((acc: number, t: any) => acc + t.amount, 0);
+    return { label, income, expense };
+  });
+});
 
 const chartMax = computed(() =>
-  Math.max(...cashFlowMonths.value.flatMap(m => [m.income, m.expense]), 1)
-)
+  Math.max(...cashFlowMonths.value.flatMap((m) => [m.income, m.expense]), 1),
+);
 
-const barHeight = (val: number) => Math.max(4, (val / chartMax.value) * 120)
+const barHeight = (val: number) => Math.max(4, (val / chartMax.value) * 120);
 
 // ─── Quick stats ──────────────────────────────────────────────────
 const pendingSales = computed(
-  () => salesFiltered.value.filter((s: any) => s.status === 'pending').length
-)
+  () => salesFiltered.value.filter((s: any) => s.status === "pending").length,
+);
 const activeProducts = computed(
-  () => products.value.filter((p: any) => p.active).length
-)
+  () => products.value.filter((p: any) => p.active).length,
+);
 
 // ─── Listas recentes ──────────────────────────────────────────────
 const recentTransactions = computed(() =>
   [...txFiltered.value]
     .sort((a: any, b: any) => toMs(b.date) - toMs(a.date))
-    .slice(0, 6)
-)
+    .slice(0, 6),
+);
 
 const recentSales = computed(() =>
   [...salesFiltered.value]
     .sort((a: any, b: any) => toMs(b.date) - toMs(a.date))
-    .slice(0, 5)
-)
+    .slice(0, 5),
+);
 
 // ─── Top Vendedores ───────────────────────────────────────────────
 const topSellers = computed(() => {
   const sellerMap = new Map<
     number,
-    { name: string, total: number, count: number }
-  >()
+    { name: string; total: number; count: number }
+  >();
 
   salesFiltered.value.forEach((s) => {
-    if (!s.seller) return
+    if (!s.seller) return;
     const current = sellerMap.get(s.seller.id) || {
       name: s.seller.name,
       total: 0,
-      count: 0
-    }
-    current.total += s.total
-    current.count += 1
-    sellerMap.set(s.seller.id, current)
-  })
+      count: 0,
+    };
+    current.total += s.total;
+    current.count += 1;
+    sellerMap.set(s.seller.id, current);
+  });
 
   return Array.from(sellerMap.values())
     .sort((a, b) => b.total - a.total)
-    .slice(0, 5)
-})
+    .slice(0, 5);
+});
 </script>
 
 <template>
@@ -380,7 +380,7 @@ const topSellers = computed(() => {
 
         <USelectMenu
           v-if="canFilter"
-          v-model="activeCompanyId as any"
+          v-model="activeCompanyId"
           :items="companies"
           value-key="id"
           label-key="name"
@@ -403,12 +403,7 @@ const topSellers = computed(() => {
           icon="i-heroicons-calendar"
         />
 
-        <UButton
-          color="primary"
-          icon="i-heroicons-plus"
-          size="sm"
-          to="/vendas"
-        >
+        <UButton color="primary" icon="i-heroicons-plus" size="sm" to="/vendas">
           Nova Venda
         </UButton>
       </div>
@@ -417,11 +412,7 @@ const topSellers = computed(() => {
     <!-- ─── KPI Cards ──────────────────────────────────────────── -->
     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
       <template v-if="salesPending">
-        <USkeleton
-          v-for="i in 4"
-          :key="i"
-          class="h-40 rounded-2xl"
-        />
+        <USkeleton v-for="i in 4" :key="i" class="h-40 rounded-2xl" />
       </template>
       <template v-else>
         <DashboardKpiCard
@@ -734,25 +725,13 @@ const topSellers = computed(() => {
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-4">
       <template v-if="txPending">
         <div class="space-y-3">
-          <USkeleton
-            v-for="i in 6"
-            :key="i"
-            class="h-14 rounded-xl"
-          />
+          <USkeleton v-for="i in 6" :key="i" class="h-14 rounded-xl" />
         </div>
         <div class="space-y-3">
-          <USkeleton
-            v-for="i in 5"
-            :key="i"
-            class="h-14 rounded-xl"
-          />
+          <USkeleton v-for="i in 5" :key="i" class="h-14 rounded-xl" />
         </div>
         <div class="space-y-3">
-          <USkeleton
-            v-for="i in 5"
-            :key="i"
-            class="h-14 rounded-xl"
-          />
+          <USkeleton v-for="i in 5" :key="i" class="h-14 rounded-xl" />
         </div>
       </template>
       <template v-else>
@@ -760,10 +739,7 @@ const topSellers = computed(() => {
           :transactions="recentTransactions"
           class="h-full"
         />
-        <DashboardRecentSales
-          :sales="recentSales"
-          class="h-full"
-        />
+        <DashboardRecentSales :sales="recentSales" class="h-full" />
 
         <!-- Top Vendedores -->
         <UCard class="flex flex-col h-full">
@@ -774,11 +750,7 @@ const topSellers = computed(() => {
               >
                 Top Vendedores
               </h3>
-              <UBadge
-                color="primary"
-                variant="soft"
-                size="sm"
-              >
+              <UBadge color="primary" variant="soft" size="sm">
                 No Período
               </UBadge>
             </div>
@@ -788,13 +760,8 @@ const topSellers = computed(() => {
             v-if="topSellers.length === 0"
             class="flex flex-col items-center justify-center py-10 text-zinc-400 flex-1"
           >
-            <UIcon
-              name="i-heroicons-users"
-              class="w-10 h-10 mb-2 opacity-40"
-            />
-            <p class="text-sm font-bold">
-              Nenhuma venda com vendedor
-            </p>
+            <UIcon name="i-heroicons-users" class="w-10 h-10 mb-2 opacity-40" />
+            <p class="text-sm font-bold">Nenhuma venda com vendedor</p>
           </div>
 
           <div
