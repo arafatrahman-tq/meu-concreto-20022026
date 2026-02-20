@@ -4,7 +4,7 @@ FROM oven/bun:1.3.9-alpine AS build
 WORKDIR /app
 
 # Copy dependency files
-COPY package.json bun.lockb ./
+COPY package.json bun.lock ./
 
 # Install dependencies
 RUN bun install --frozen-lockfile
