@@ -380,7 +380,7 @@ const topSellers = computed(() => {
 
         <USelectMenu
           v-if="canFilter"
-          v-model="activeCompanyId"
+          :model-value="activeCompanyId ?? undefined"
           :items="companies"
           value-key="id"
           label-key="name"
@@ -389,6 +389,7 @@ const topSellers = computed(() => {
           size="sm"
           color="neutral"
           icon="i-heroicons-building-office"
+          @update:model-value="(v: number) => (activeCompanyId = v)"
         />
 
         <USelectMenu
